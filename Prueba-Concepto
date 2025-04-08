@@ -1,0 +1,151 @@
+#include<ArduinoBLE.h>
+#include<SD.h>
+#include<RTCZero.h>
+#include <Servo.h> 
+
+Servo myServo; 
+
+const int chipSelect = 10; 
+
+// Servo 
+const int ldr1 = A0; 
+const int ldr2 = A1;
+int pos = 90; 
+int tolerance = 3;
+
+// Sensor Voltage
+const int pinConsu = A2; 
+
+// BLE
+BLEService sensorService("79739b27-d2c7-489b-9a9b-9422a2ed36fa");
+BLEStringCharacteristic sensorConsu("05a11323-becb-4cef-bd45-b23af3cc5161", BLERead | BLENotify,15);
+float old_e = 0;
+
+RTCZero rtc; 
+unsigned long lastSaveTime = 0;  
+unsigned long previousMillis = 0;  
+unsigned long interval = 300; 
+
+bool conectado = false;
+
+void setup() {
+  Serial.begin(9600);
+
+  if(!BLE.begin()){
+    Serial.println("starting BLE failed! :(");
+    while(1);
+  }
+
+  BLE.setLocalName("Energy");
+  BLE.setDeviceName("Energy");
+  BLE.setAdvertisedService(sensorService);
+
+  sensorService.addCharacteristic(sensorConsu);
+  BLE.addService(sensorService);
+
+  sensorConsu.writeValue(String(0));
+
+  BLE.advertise();
+  Serial.println("Bluetooth device active, waiting for connections...");
+
+  // Inicialización de la SD
+  if (!SD.begin(chipSelect)) {
+        Serial.println("Error al inicializar la tarjeta SD");
+        return;
+    }
+    Serial.println("Tarjeta SD lista");
+
+   // Configurar el RTC con una fecha y hora inicial
+    rtc.begin();
+    rtc.setDate(31, 3, 2025); // Día, Mes, Año
+    rtc.setTime(19, 18, 0);    // Hora, Minuto, Segundo
+
+  // Servo
+  myServo.attach(9);  
+  pinMode(ldr1, INPUT); 
+  pinMode(ldr2, INPUT);
+  myServo.write(pos);
+
+  delay(1000);
+}
+
+
+void loop() {
+  
+  SenServo();
+
+  BLEDevice central = BLE.central();
+  
+  if (central && !conectado) { 
+    Serial.print("Conectado con: ");
+    Serial.println(central.address());
+    digitalWrite(LED_BUILTIN, HIGH);
+    conectado = true;
+  } 
+  else if (!central && conectado) {  
+    Serial.println("Desconectado.");
+    digitalWrite(LED_BUILTIN, LOW);
+    conectado = false;
+  }
+
+  // Actualización BLE con `millis()`, sin detener el código
+  static unsigned long previousMillisBLE = 0;
+  if (millis() - previousMillisBLE >= 300) {  // Cada 300ms
+      previousMillisBLE = millis();
+      updateData();  // Enviar datos por BLE
+  }
+  guardarEnSD("datos.txt", analogRead(pinConsu) * (3.3 / 1023.0));
+}
+void updateData(){
+  int sensor = analogRead(pinConsu);
+  float energy = sensor * (3.3 / 1023.0);
+  
+  if(energy != old_e){
+    sensorConsu.writeValue(String(energy));
+    old_e = energy;
+  }
+
+}
+void guardarEnSD(const char *nombreArchivo, float valor) {
+    if (millis() - lastSaveTime >= 60000) {  
+        lastSaveTime = millis();
+
+        File archivo = SD.open(nombreArchivo, FILE_WRITE);
+        if (archivo) {
+            archivo.print(rtc.getYear() + 2000); archivo.print("-");
+            archivo.print(rtc.getMonth()); archivo.print("-");
+            archivo.print(rtc.getDay()); archivo.print(" ");
+            archivo.print(rtc.getHours()); archivo.print(":");
+            archivo.print(rtc.getMinutes()); archivo.print(":");
+            archivo.print(rtc.getSeconds());
+            archivo.print(" - Valor: ");
+            archivo.println(valor);
+            archivo.close();
+            Serial.println("Dato guardado en SD.");
+        } else {
+            Serial.println("Error al abrir el archivo para escritura.");
+        }
+    }
+}
+
+void SenServo(){
+  int val1 = analogRead(ldr1);
+  int val2 = analogRead(ldr2);
+  
+  if((abs(val1 - val2) <= tolerance) || (abs(val2 - val1) <= tolerance)) {
+  }else {
+    if(val1 > val2) 
+      {
+        pos = pos+1;  
+      }
+    if(val1 < val2) 
+      {
+        pos = pos-1;
+      }
+  }
+     
+  if(pos > 180) {pos = 180;} 
+  if(pos < 0) {pos = 0;} 
+  myServo.write(pos); 
+  delay(50);
+}
