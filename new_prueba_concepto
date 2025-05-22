@@ -1,0 +1,177 @@
+#include <ArduinoBLE.h>
+#include <SD.h>
+#include <RTCZero.h>
+
+const int chipSelect = 10;
+
+// Motor
+const int dirPin = 2;
+const int stepPin = 3;
+const int interruptor = A2;
+
+const unsigned long stepInterval = 3000;
+unsigned long previousMicros = 0;
+
+bool stepping = false;
+bool stepState = LOW;
+int stepCount = 0;
+int targetSteps = 0;
+int direction = HIGH;
+
+// Sensor Voltage
+const int pinConsu = A4;
+
+// BLE
+BLEService sensorService("79739b27-d2c7-489b-9a9b-9422a2ed36fa");
+
+BLEStringCharacteristic sensorConsu("05a11323-becb-4cef-bd45-b23af3cc5161", BLERead | BLENotify, 15);
+BLEByteCharacteristic switchCharacteristic("b90c3b96-b423-49c8-a839-4920b0101740", BLERead | BLEWrite);
+
+float old_e = 0;
+
+RTCZero rtc;
+unsigned long lastSaveTime = 0;
+unsigned long previousMillis = 0;
+unsigned long interval = 300;
+
+bool conectado = false;
+
+int bleValor = 0; 
+
+void setup() {
+  Serial.begin(9600);
+  delay(1000);
+
+  pinMode(interruptor, INPUT);
+
+  pinMode(dirPin, OUTPUT);
+  pinMode(stepPin, OUTPUT);
+
+  if (!BLE.begin()) {
+    Serial.println("starting BLE failed! :(");
+    while (1);
+  }
+
+  BLE.setLocalName("Energy");
+  BLE.setDeviceName("Energy");
+  BLE.setAdvertisedService(sensorService);
+
+  sensorService.addCharacteristic(sensorConsu);
+  sensorService.addCharacteristic(switchCharacteristic);
+
+  BLE.addService(sensorService);
+
+  sensorConsu.writeValue(String(0));
+  switchCharacteristic.writeValue(0);
+
+  BLE.advertise();
+  Serial.println("Bluetooth activo. Esperando conexión...");
+
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Error al inicializar SD");
+    return;
+  }
+  Serial.println("Tarjeta SD lista");
+
+  rtc.begin();
+  rtc.setDate(22, 5, 2025);
+  rtc.setTime(12, 00, 0);
+}
+
+void loop() {
+  BLEDevice central = BLE.central();
+  int estadoInterruptor = digitalRead(interruptor);
+
+  if (central && !conectado) {
+    Serial.print("Conectado con: ");
+    Serial.println(central.address());
+    digitalWrite(LED_BUILTIN, HIGH);
+    conectado = true;
+  } else if (!central && conectado) {
+    Serial.println("Desconectado.");
+    digitalWrite(LED_BUILTIN, LOW);
+    conectado = false;
+  }
+
+  // Actualizar datos BLE cada 300ms
+  static unsigned long previousMillisBLE = 0;
+  if (millis() - previousMillisBLE >= 300) {
+    previousMillisBLE = millis();
+    updateData();
+  }
+
+  guardarEnSD("datos.txt", analogRead(pinConsu) * (3.3 / 1023.0));
+
+  if (switchCharacteristic.written()) {
+    bleValor = switchCharacteristic.value();
+    Serial.print("BLE recibido: ");
+    Serial.println(bleValor);
+
+  // Mover motor hacia adelante (bleValor > 0) solo si interruptor está en LOW
+  if (bleValor > 0 && !stepping && digitalRead(interruptor) == LOW) {
+    direction = HIGH;
+    digitalWrite(dirPin, direction);
+    targetSteps = 400;
+    stepCount = 0;
+    stepping = true;
+  }
+
+  // Mover motor hacia atrás (bleValor == 0) solo si interruptor está en HIGH
+  else if (bleValor == 0 && !stepping && digitalRead(interruptor) == HIGH) {
+    direction = LOW;
+    digitalWrite(dirPin, direction);
+    targetSteps = 400;
+    stepCount = 0;
+    stepping = true;
+  }
+  }
+
+  if (stepping) {
+    unsigned long currentMicros = micros();
+    if (currentMicros - previousMicros >= stepInterval / 2) {
+      previousMicros = currentMicros;
+      digitalWrite(stepPin, stepState);
+      stepState = !stepState;
+
+      if (stepState == LOW) {
+        stepCount++;
+        if (stepCount >= targetSteps) {
+          stepping = false;
+        }
+      }
+    }
+  }
+}
+
+
+void updateData() {
+  int sensor = analogRead(pinConsu);
+  float energy = sensor * (3.3 / 1023.0);
+
+  if (energy != old_e) {
+    sensorConsu.writeValue(String(energy));
+    old_e = energy;
+  }
+}
+
+void guardarEnSD(const char *nombreArchivo, float valor) {
+  if (millis() - lastSaveTime >= 60000) {
+    lastSaveTime = millis();
+
+    File archivo = SD.open(nombreArchivo, FILE_WRITE);
+    if (archivo) {
+      archivo.print(rtc.getYear() + 2000); archivo.print("-");
+      archivo.print(rtc.getMonth()); archivo.print("-");
+      archivo.print(rtc.getDay()); archivo.print(" ");
+      archivo.print(rtc.getHours()); archivo.print(":");
+      archivo.print(rtc.getMinutes()); archivo.print(":");
+      archivo.print(rtc.getSeconds());
+      archivo.print(" - Valor: ");
+      archivo.println(valor);
+      archivo.close();
+      Serial.println("Dato guardado en SD.");
+    } else {
+      Serial.println("Error al abrir archivo.");
+    }
+  }
+}
