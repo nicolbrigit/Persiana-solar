@@ -53,7 +53,7 @@ Asegúrate de tener instalado Arduino IDE y las siguientes librerías:
 
 - [Diagrma Eléctrico](https://github.com/nicolbrigit/Persiana-solar/blob/main/Diagrama%20electrico%20new_prueba_concepto%20.png)
 - [Diagrama físico](https://github.com/nicolbrigit/Persiana-solar/blob/main/Diagrama%20f%C3%ADsico%20new_prueba_concepto.png)
-- [Diagrama a bloques](Persiana-solar/new_prueba_concepto) 
+- [Diagrama a bloques](docs/new_prueba_concepto) 
 
 ## 🧠 Funcionamiento
 
