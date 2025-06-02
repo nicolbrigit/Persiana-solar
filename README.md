@@ -48,12 +48,13 @@ Asegúrate de tener instalado Arduino IDE y las siguientes librerías:
 - `ArduinoBLE`
 - `SD`
 - `RTCZero`
+El código es "new_prueba_concepto"
 
 ## 🛠️ Hardware utilizado
 
 - [Diagrma Eléctrico](https://github.com/nicolbrigit/Persiana-solar/blob/main/Diagrama%20electrico%20new_prueba_concepto%20.png)
 - [Diagrama físico](https://github.com/nicolbrigit/Persiana-solar/blob/main/Diagrama%20f%C3%ADsico%20new_prueba_concepto.png)
-- [Diagrama a bloques](docs/new_prueba_concepto) 
+- [Diagrama a bloques]() 
 
 ## 🧠 Funcionamiento
 
@@ -70,3 +71,30 @@ Asegúrate de tener instalado Arduino IDE y las siguientes librerías:
 
 ### Registro en SD
 - Cada minuto, el sistema guarda en `datos.txt` el voltaje leído junto con la marca de tiempo actual.
+
+# Recomendaciones y prupuestas de mejora
+A partir de los resultados obtenidos, así como de las observaciones realizadas durante el 
+desarrollo del proyecto “Construcción de BSW (Software Embebido Base) en tabletas 
+comunes de desarrollo para proyectos IoT”, se proponen las siguientes recomendaciones, 
+orientadas a fortalecer y ampliar la utilidad del sistema en futuros desarrollos: 
+1. Realizar pruebas prolongadas en tiempo real.
+Se sugiere ejecutar pruebas de concepto del sistema completo (hardware y software) en 
+condiciones reales durante lapsos prolongados, por ejemplo, en ciclos de 24 horas 
+continuas. Esto permitirá detectar posibles fallas intermitentes, problemas de 
+estabilidad o rendimiento, y ayudará a validar la confiabilidad del sistema en 
+escenarios reales de uso. 
+2. Agregar un módulo de reloj en tiempo real (RTC). 
+Se recomienda integrar un módulo de reloj en tiempo real (RTC) como parte del 
+sistema, con el fin de contar con referencias temporales precisas durante el 
+almacenamiento de datos y el monitoreo de señales. Esto facilitará la trazabilidad y el 
+análisis de datos recolectados por el sistema. 
+3. Probar el sistema con diferentes protocolos de comunicación.
+Para aumentar la versatilidad del BSW, sería útil realizar pruebas de funcionalidad 
+utilizando diferentes medios de comunicación. Específicamente, se sugiere probar la 
+conectividad vía Wi-Fi como alternativa al Bluetooth Low Energy (BLE), evaluando el 
+89 
+rendimiento, alcance y estabilidad de cada protocolo según el tipo de aplicación. 
+Estas recomendaciones tienen el propósito de fortalecer la arquitectura del software embebido 
+base, mejorar su confiabilidad en operación continua y ampliar sus capacidades de 
+comunicación y registro, optimizando así su impacto positivo en los procesos tecnológicos de 
+la empresa.
